@@ -1,35 +1,325 @@
 module Main exposing (Msg(..), main, update, view)
 
 import Browser
-import Html exposing (Html, button, div, text)
+import Browser.Events exposing (onKeyDown)
+import Canvas exposing (..)
+import Canvas.Settings exposing (fill, stroke)
+import Canvas.Settings.Text exposing (TextAlign(..), align, font)
+import Color
+import Html exposing (Html, div, h1, p, section)
 import Html.Attributes exposing (class)
-import Html.Events exposing (onClick)
+import Json.Decode as Decode
+import Random
+import String exposing (fromInt)
+import Time
 
 
-main : Program () Int Msg
-main =
-    Browser.sandbox { init = 0, update = update, view = view }
+
+-- TYPES --
+
+
+type alias Position =
+    ( Int, Int )
+
+
+type Direction
+    = Up
+    | Right
+    | Down
+    | Left
+
+
+type alias Snake =
+    { direction : Direction, head : Position, body : List Position }
+
+
+type alias Model =
+    { canvasProps : { width : Int, height : Int, cellSize : Int, size : Int }
+    , snake : Snake
+    , food : Position
+    , gameOver : Bool
+    , acceptingInput : Bool
+    }
 
 
 type Msg
-    = Increment
-    | Decrement
+    = NoOp
+    | Tick Time.Posix
+    | KeyPress Direction
+    | RestartGame
+    | NewFood Position
 
 
-update : Msg -> number -> number
+randomPosition : Int -> (Position -> Msg) -> Cmd Msg
+randomPosition size msg =
+    Random.pair (randomWidth size) (randomHeight size)
+        |> Random.generate msg
+
+
+randomWidth : Int -> Random.Generator Int
+randomWidth size =
+    Random.int 0 (size - 1)
+
+
+randomHeight : Int -> Random.Generator Int
+randomHeight size =
+    Random.int 0 (size - 1)
+
+
+disallowedDirectionTransitions : List ( Direction, Direction )
+disallowedDirectionTransitions =
+    [ ( Left, Right ), ( Right, Left ), ( Up, Down ), ( Down, Up ) ]
+
+
+main : Program () Model Msg
+main =
+    Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    if model.gameOver then
+        Sub.batch [ onKeyDown keyDecoder ]
+
+    else
+        Sub.batch [ Time.every 100 Tick, onKeyDown keyDecoder ]
+
+
+initialModel : Model
+initialModel =
+    let
+        size =
+            25
+    in
+    { canvasProps = { width = 400, height = 400, cellSize = 400 // size, size = size }
+    , snake = { direction = Down, head = ( 10, 10 ), body = [ ( 10, 9 ), ( 10, 8 ), ( 10, 7 ) ] }
+    , food = ( -15, -15 ) -- place a food outside the board and generate a position at random
+    , gameOver = False
+    , acceptingInput = True
+    }
+
+
+init : flags -> ( Model, Cmd Msg )
+init _ =
+    ( initialModel
+    , randomPosition initialModel.canvasProps.size NewFood
+    )
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Increment ->
-            model + 1
+        RestartGame ->
+            init ()
 
-        Decrement ->
-            model - 1
+        NewFood pos ->
+            ( { model | food = pos }, Cmd.none )
+
+        NoOp ->
+            ( model, Cmd.none )
+
+        Tick _ ->
+            tick model
+
+        KeyPress direction ->
+            if List.member ( model.snake.direction, direction ) disallowedDirectionTransitions || not model.acceptingInput then
+                ( model, Cmd.none )
+
+            else
+                ( { model | snake = { head = model.snake.head, direction = direction, body = model.snake.body }, acceptingInput = False }, Cmd.none )
 
 
-view : Int -> Html Msg
+tick : Model -> ( Model, Cmd Msg )
+tick model =
+    if model.gameOver then
+        runGameOverTick model
+
+    else
+        runGameTick model
+
+
+runGameOverTick : Model -> ( Model, Cmd Msg )
+runGameOverTick model =
+    ( model, Cmd.none )
+
+
+runGameTick : Model -> ( Model, Cmd Msg )
+runGameTick model =
+    let
+        boardSize =
+            model.canvasProps.size
+
+        wrap : Position -> Position
+        wrap ( x, y ) =
+            if x < 0 then
+                ( boardSize - 1, y )
+
+            else if y < 0 then
+                ( x, boardSize - 1 )
+
+            else if x >= boardSize then
+                ( 0, y )
+
+            else if y >= boardSize then
+                ( x, 0 )
+
+            else
+                ( x, y )
+
+        snake =
+            model.snake
+
+        newHeadPos : Position
+        newHeadPos =
+            case model.snake.direction of
+                Up ->
+                    wrap ( Tuple.first snake.head, Tuple.second snake.head - 1 )
+
+                Down ->
+                    wrap ( Tuple.first snake.head, Tuple.second snake.head + 1 )
+
+                Left ->
+                    wrap ( Tuple.first snake.head - 1, Tuple.second snake.head )
+
+                Right ->
+                    wrap ( Tuple.first snake.head + 1, Tuple.second snake.head )
+
+        snakeAte =
+            newHeadPos == model.food
+
+        gameOver =
+            checkSelfCollision model.snake
+
+        newSnake : Snake
+        newSnake =
+            if gameOver then
+                model.snake
+
+            else
+                { direction = model.snake.direction, head = newHeadPos, body = updateBody snakeAte model.snake }
+
+        cmd =
+            if snakeAte then
+                randomPosition model.canvasProps.size NewFood
+
+            else
+                Cmd.none
+    in
+    ( { model | snake = newSnake, gameOver = gameOver, acceptingInput = True }, cmd )
+
+
+checkSelfCollision : Snake -> Bool
+checkSelfCollision snake =
+    List.member snake.head snake.body
+
+
+updateBody : Bool -> Snake -> List Position
+updateBody snakeAteFood { head, body } =
+    if snakeAteFood then
+        head :: body
+
+    else
+        head :: removeLast body
+
+
+removeLast : List a -> List a
+removeLast list =
+    List.take (List.length list - 1) list
+
+
+keyDecoder : Decode.Decoder Msg
+keyDecoder =
+    Decode.map toKey (Decode.field "key" Decode.string)
+
+
+toKey : String -> Msg
+toKey string =
+    case string of
+        "ArrowUp" ->
+            KeyPress Up
+
+        "ArrowLeft" ->
+            KeyPress Left
+
+        "ArrowDown" ->
+            KeyPress Down
+
+        "ArrowRight" ->
+            KeyPress Right
+
+        " " ->
+            RestartGame
+
+        _ ->
+            NoOp
+
+
+
+-- VIEW --
+
+
+view : Model -> Html Msg
 view model =
-    div [ class "max-w-5xl m-auto text-center" ]
-        [ button [ onClick Decrement, class "px-4 py-2 border rounded-sm cursor-pointer" ] [ text "-" ]
-        , div [] [ text (String.fromInt model) ]
-        , button [ onClick Increment, class "px-4 py-2 border rounded-sm cursor-pointer" ] [ text "+" ]
+    let
+        width =
+            model.canvasProps.width
+
+        height =
+            model.canvasProps.height
+
+        score : Int
+        score =
+            List.length model.snake.body - List.length initialModel.snake.body
+    in
+    div [ class "h-full grid place-items-center" ]
+        [ div []
+            [ section [ class "flex justify-between w-full max-w-[400px] mb-2 items-baseline" ]
+                [ h1 [ class "text-[green] text-3xl font-bold" ] [ Html.text "SnakElm" ]
+                , p [] [ Html.text ("Score: " ++ fromInt score) ]
+                ]
+            , Canvas.toHtml ( width, height )
+                []
+                (shapes [ fill Color.darkGreen ] [ rect ( 0, 0 ) (toFloat width) (toFloat height) ]
+                    :: renderWorld model
+                )
+            ]
         ]
+
+
+renderWorld : Model -> List Renderable
+renderWorld { canvasProps, snake, food, gameOver } =
+    let
+        transformPosition : Position -> Point
+        transformPosition pos =
+            Tuple.mapBoth (\p -> p * canvasProps.cellSize |> toFloat) (\p -> p * canvasProps.cellSize |> toFloat) pos
+
+        -- shifts position by a half tile, because circle takes center position
+        centerPosition : Point -> Point
+        centerPosition p =
+            Tuple.mapBoth (\x -> x + (toFloat <| canvasProps.cellSize // 2)) (\x -> x + (toFloat <| canvasProps.cellSize // 2)) p
+
+        foodPosition : Point
+        foodPosition =
+            transformPosition food |> centerPosition
+
+        gameOverRenderables : List Renderable
+        gameOverRenderables =
+            if gameOver then
+                [ shapes [ fill (Color.rgba 0 0 0 0.5) ] [ rect ( 0, 0 ) (toFloat <| canvasProps.width) (toFloat <| canvasProps.height) ]
+                , text [ font { size = 40, family = "Sans" }, align Center, fill Color.red ] ( toFloat <| canvasProps.width // 2, toFloat <| canvasProps.height // 2 ) "Game Over"
+                , text [ font { size = 18, family = "Sans" }, align Center, fill Color.white ] ( toFloat <| canvasProps.width // 2, toFloat <| (canvasProps.height // 2) + 30 ) "Press space te restart"
+                ]
+
+            else
+                []
+    in
+    [ shapes [ fill Color.red ] [ circle foodPosition (toFloat <| canvasProps.cellSize // 3) ]
+    , shapes [ fill (Color.rgba 0.8 0.8 0.8 1), stroke Color.black ]
+        (List.map
+            (\pos -> rect (transformPosition pos) (toFloat canvasProps.cellSize) (toFloat canvasProps.cellSize))
+            snake.body
+        )
+    , shapes [ fill (Color.rgba 0.9 0.9 0.9 1), stroke Color.black ]
+        [ rect (transformPosition snake.head) (toFloat canvasProps.cellSize) (toFloat canvasProps.cellSize) ]
+    ]
+        ++ gameOverRenderables

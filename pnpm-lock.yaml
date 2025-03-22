@@ -10,20 +10,23 @@ importers:
     dependencies:
       '@tailwindcss/vite':
         specifier: ^4.0.14
-        version: 4.0.14(vite@6.2.2(jiti@2.4.2)(lightningcss@1.29.2))
+        version: 4.0.14(vite@6.2.2(@types/node@22.13.11)(jiti@2.4.2)(lightningcss@1.29.2))
       tailwindcss:
         specifier: ^4.0.14
         version: 4.0.14
     devDependencies:
+      '@types/node':
+        specifier: ^22.13.11
+        version: 22.13.11
       typescript:
         specifier: ~5.7.2
         version: 5.7.3
       vite:
         specifier: ^6.2.0
-        version: 6.2.2(jiti@2.4.2)(lightningcss@1.29.2)
+        version: 6.2.2(@types/node@22.13.11)(jiti@2.4.2)(lightningcss@1.29.2)
       vite-plugin-elm:
         specifier: ^3.0.1
-        version: 3.0.1(vite@6.2.2(jiti@2.4.2)(lightningcss@1.29.2))
+        version: 3.0.1(vite@6.2.2(@types/node@22.13.11)(jiti@2.4.2)(lightningcss@1.29.2))
 
 packages:
 
@@ -353,6 +356,9 @@ packages:
   '@types/estree@1.0.6':
     resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
 
+  '@types/node@22.13.11':
+    resolution: {integrity: sha512-iEUCUJoU0i3VnrCmgoWCXttklWcvoCIx4jzcP22fioIVSdTmjgoEvmAO/QPw6TcS9k5FrNgn4w7q5lGOd1CT5g==}
+
   acorn-walk@8.3.4:
     resolution: {integrity: sha512-ueEepnujpqee2o5aIYnvHU6C0A42MNdsIDeqy5BydrkuC5R1ZuUFnm27EeFJGoEHJQgn3uleRvmTXaJgfXbt4g==}
     engines: {node: '>=0.4.0'}
@@ -598,6 +604,9 @@ packages:
     resolution: {integrity: sha512-84MVSjMEHP+FQRPy3pX9sTVV/INIex71s9TL2Gm5FG/WG1SqXeKyZ0k7/blY/4FdOzI12CBy1vGc4og/eus0fw==}
     engines: {node: '>=14.17'}
     hasBin: true
+
+  undici-types@6.20.0:
+    resolution: {integrity: sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg==}
 
   unicorn-magic@0.1.0:
     resolution: {integrity: sha512-lRfVq8fE8gz6QMBuDM6a+LO3IAzTi05H6gCVaUpir2E1Rwpo4ZUog45KpNXKC/Mn3Yb9UDuHumeFTo9iV/D9FQ==}
@@ -851,15 +860,19 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.0.14
       '@tailwindcss/oxide-win32-x64-msvc': 4.0.14
 
-  '@tailwindcss/vite@4.0.14(vite@6.2.2(jiti@2.4.2)(lightningcss@1.29.2))':
+  '@tailwindcss/vite@4.0.14(vite@6.2.2(@types/node@22.13.11)(jiti@2.4.2)(lightningcss@1.29.2))':
     dependencies:
       '@tailwindcss/node': 4.0.14
       '@tailwindcss/oxide': 4.0.14
       lightningcss: 1.29.2
       tailwindcss: 4.0.14
-      vite: 6.2.2(jiti@2.4.2)(lightningcss@1.29.2)
+      vite: 6.2.2(@types/node@22.13.11)(jiti@2.4.2)(lightningcss@1.29.2)
 
   '@types/estree@1.0.6': {}
+
+  '@types/node@22.13.11':
+    dependencies:
+      undici-types: 6.20.0
 
   acorn-walk@8.3.4:
     dependencies:
@@ -1111,23 +1124,26 @@ snapshots:
 
   typescript@5.7.3: {}
 
+  undici-types@6.20.0: {}
+
   unicorn-magic@0.1.0: {}
 
-  vite-plugin-elm@3.0.1(vite@6.2.2(jiti@2.4.2)(lightningcss@1.29.2)):
+  vite-plugin-elm@3.0.1(vite@6.2.2(@types/node@22.13.11)(jiti@2.4.2)(lightningcss@1.29.2)):
     dependencies:
       acorn: 8.14.1
       acorn-walk: 8.3.4
       elm-esm: 1.1.4
       find-up: 7.0.0
       node-elm-compiler: 5.0.6
-      vite: 6.2.2(jiti@2.4.2)(lightningcss@1.29.2)
+      vite: 6.2.2(@types/node@22.13.11)(jiti@2.4.2)(lightningcss@1.29.2)
 
-  vite@6.2.2(jiti@2.4.2)(lightningcss@1.29.2):
+  vite@6.2.2(@types/node@22.13.11)(jiti@2.4.2)(lightningcss@1.29.2):
     dependencies:
       esbuild: 0.25.1
       postcss: 8.5.3
       rollup: 4.36.0
     optionalDependencies:
+      '@types/node': 22.13.11
       fsevents: 2.3.3
       jiti: 2.4.2
       lightningcss: 1.29.2

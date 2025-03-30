@@ -1,4 +1,4 @@
-module Main exposing (Msg(..), main, update, view)
+port module Main exposing (Msg(..), main, update, view)
 
 import Browser
 import Browser.Events exposing (onKeyDown)
@@ -29,6 +29,10 @@ type Direction
     | Left
 
 
+type alias Flags =
+    { highScore : Int }
+
+
 type alias Snake =
     { direction : Direction, head : Position, body : List Position }
 
@@ -39,6 +43,7 @@ type alias Model =
     , food : Position
     , gameOver : Bool
     , acceptingInput : Bool
+    , highScore : Int
     }
 
 
@@ -71,7 +76,10 @@ disallowedDirectionTransitions =
     [ ( Left, Right ), ( Right, Left ), ( Up, Down ), ( Down, Up ) ]
 
 
-main : Program () Model Msg
+port setHighscore : Int -> Cmd msg
+
+
+main : Program Decode.Value Model Msg
 main =
     Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
 
@@ -85,8 +93,8 @@ subscriptions model =
         Sub.batch [ Time.every 100 Tick, onKeyDown keyDecoder ]
 
 
-initialModel : Model
-initialModel =
+initialModel : Int -> Model
+initialModel highScore =
     let
         size =
             25
@@ -96,21 +104,47 @@ initialModel =
     , food = ( -15, -15 ) -- place a food outside the board and generate a position at random
     , gameOver = False
     , acceptingInput = True
+    , highScore = highScore
     }
 
 
-init : flags -> ( Model, Cmd Msg )
-init _ =
-    ( initialModel
-    , randomPosition initialModel.canvasProps.size NewFood
+flagsDecoder : Decode.Decoder Flags
+flagsDecoder =
+    Decode.map Flags (Decode.field "highScore" Decode.int)
+
+
+init : Decode.Value -> ( Model, Cmd Msg )
+init val =
+    case Decode.decodeValue flagsDecoder val of
+        Ok flags ->
+            initModel flags
+
+        Err string ->
+            Debug.log "Could not load highScore" string
+                |> (\_ -> initModel { highScore = 0 })
+
+
+initModel : Flags -> ( Model, Cmd Msg )
+initModel flags =
+    ( initialModel flags.highScore
+    , randomPosition (initialModel 0).canvasProps.size NewFood
     )
+
+
+maybeSetHighscore : Int -> Int -> Cmd msg
+maybeSetHighscore previousHS score =
+    if score > previousHS then
+        setHighscore score
+
+    else
+        Cmd.none
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         RestartGame ->
-            init ()
+            initModel { highScore = model.highScore }
 
         NewFood pos ->
             ( { model | food = pos }, Cmd.none )
@@ -190,6 +224,16 @@ runGameTick model =
         gameOver =
             checkSelfCollision model.snake
 
+        score =
+            List.length newSnake.body - List.length (initialModel 0).snake.body
+
+        highScore =
+            if gameOver && score > model.highScore then
+                score
+
+            else
+                model.highScore
+
         newSnake : Snake
         newSnake =
             if gameOver then
@@ -202,10 +246,13 @@ runGameTick model =
             if snakeAte then
                 randomPosition model.canvasProps.size NewFood
 
+            else if gameOver then
+                maybeSetHighscore model.highScore (List.length newSnake.body - List.length (initialModel 0).snake.body)
+
             else
                 Cmd.none
     in
-    ( { model | snake = newSnake, gameOver = gameOver, acceptingInput = True }, cmd )
+    ( { model | snake = newSnake, gameOver = gameOver, acceptingInput = True, highScore = highScore }, cmd )
 
 
 checkSelfCollision : Snake -> Bool
@@ -269,13 +316,16 @@ view model =
 
         score : Int
         score =
-            List.length model.snake.body - List.length initialModel.snake.body
+            List.length model.snake.body - List.length (initialModel 0).snake.body
     in
     div [ class "h-full grid place-items-center" ]
         [ div []
-            [ section [ class "flex justify-between w-full max-w-[400px] mb-2 items-baseline" ]
-                [ h1 [ class "text-[green] text-3xl font-bold" ] [ Html.text "SnakElm" ]
-                , p [] [ Html.text ("Score: " ++ fromInt score) ]
+            [ section [ class "flex justify-between w-full max-w-[400px] mb-2" ]
+                [ h1 [ class "text-[green] text-5xl font-bold" ] [ Html.text "SnakElm" ]
+                , div []
+                    [ p [] [ Html.text ("Score: " ++ fromInt score) ]
+                    , p [] [ Html.text ("Highscore: " ++ fromInt model.highScore) ]
+                    ]
                 ]
             , Canvas.toHtml ( width, height )
                 []

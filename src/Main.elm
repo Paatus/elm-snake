@@ -55,10 +55,25 @@ type Msg
     | NewFood Position
 
 
-randomPosition : Int -> (Position -> Msg) -> Cmd Msg
-randomPosition size msg =
-    Random.pair (randomWidth size) (randomHeight size)
+newFoodPosition : List Position -> Int -> (Position -> Msg) -> Cmd Msg
+newFoodPosition disallowedPositions size msg =
+    let
+        bla : Position -> Random.Generator Position
+        bla p =
+            if List.member p disallowedPositions then
+                randomPosition size |> Random.andThen bla
+
+            else
+                Random.constant p
+    in
+    randomPosition size
+        |> Random.andThen bla
         |> Random.generate msg
+
+
+randomPosition : Int -> Random.Generator Position
+randomPosition size =
+    Random.pair (randomWidth size) (randomHeight size)
 
 
 randomWidth : Int -> Random.Generator Int
@@ -125,8 +140,12 @@ init val =
 
 initModel : Flags -> ( Model, Cmd Msg )
 initModel flags =
+    let
+        model =
+            initialModel 0
+    in
     ( initialModel flags.highScore
-    , randomPosition (initialModel 0).canvasProps.size NewFood
+    , newFoodPosition model.snake.body model.canvasProps.size NewFood
     )
 
 
@@ -243,7 +262,7 @@ runGameTick model =
 
         cmd =
             if snakeAte then
-                randomPosition model.canvasProps.size NewFood
+                newFoodPosition model.snake.body model.canvasProps.size NewFood
 
             else if gameOver then
                 maybeSetHighscore model.highScore (List.length newSnake.body - List.length (initialModel 0).snake.body)

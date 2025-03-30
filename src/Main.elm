@@ -318,11 +318,11 @@ view model =
         score =
             List.length model.snake.body - List.length (initialModel 0).snake.body
     in
-    div [ class "h-full grid place-items-center" ]
+    div [ class "h-full grid place-items-center bg-neutral-300 dark:bg-neutral-800" ]
         [ div []
             [ section [ class "flex justify-between w-full max-w-[400px] mb-2" ]
                 [ h1 [ class "text-[green] text-5xl font-bold" ] [ Html.text "SnakElm" ]
-                , div []
+                , div [ class "dark:text-gray-200" ]
                     [ p [] [ Html.text ("Score: " ++ fromInt score) ]
                     , p [] [ Html.text ("Highscore: " ++ fromInt model.highScore) ]
                     ]

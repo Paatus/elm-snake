@@ -119,9 +119,8 @@ init val =
         Ok flags ->
             initModel flags
 
-        Err string ->
-            Debug.log "Could not load highScore" string
-                |> (\_ -> initModel { highScore = 0 })
+        Err _ ->
+            initModel { highScore = 0 }
 
 
 initModel : Flags -> ( Model, Cmd Msg )
